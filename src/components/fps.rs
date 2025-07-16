@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::time::Instant;
 
 use color_eyre::Result;
@@ -68,6 +69,10 @@ impl FpsCounter {
 }
 
 impl Component for FpsCounter {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
     fn update(&mut self, action: Action) -> Result<Option<Action>> {
         match action {
             Action::Tick => self.app_tick()?,

@@ -7,18 +7,18 @@ use super::Component;
 use crate::{action::Action, config::Config};
 
 #[derive(Default)]
-pub struct Home {
+pub struct ChatWindow {
     command_tx: Option<UnboundedSender<Action>>,
     config: Config,
 }
 
-impl Home {
+impl ChatWindow {
     pub fn new() -> Self {
         Self::default()
     }
 }
 
-impl Component for Home {
+impl Component for ChatWindow {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -47,7 +47,11 @@ impl Component for Home {
     }
 
     fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
-        frame.render_widget(Paragraph::new("hello world"), area);
+        let block = Block::bordered()
+            .title("Chat Window")
+            .title_bottom("Press 'q' to quit")
+            .border_style(Style::default().fg(Color::White));
+        frame.render_widget(block, area);
         Ok(())
     }
 }

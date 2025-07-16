@@ -4,18 +4,24 @@ use ratatui::{
     Frame,
     layout::{Rect, Size},
 };
+use std::any::Any;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{action::Action, config::Config, tui::Event};
 
+pub mod chat_window;
 pub mod fps;
 pub mod home;
+pub mod input;
 
 /// `Component` is a trait that represents a visual and interactive element of the user interface.
 ///
 /// Implementors of this trait can be registered with the main application loop and will be able to
 /// receive events, update state, and be rendered on the screen.
 pub trait Component {
+    /// Get a reference to Any for downcasting purposes
+    fn as_any(&self) -> &dyn Any;
+
     /// Register an action handler that can send actions for processing if necessary.
     ///
     /// # Arguments

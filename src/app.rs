@@ -1,13 +1,13 @@
 use color_eyre::Result;
 use crossterm::event::KeyEvent;
-use ratatui::prelude::Rect;
+use ratatui::prelude::*;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tracing::{debug, info};
 
 use crate::{
     action::Action,
-    components::{Component, fps::FpsCounter, home::Home},
+    components::{Component, chat_window::ChatWindow, home::Home, input::Input},
     config::Config,
     tui::{Event, Tui},
 };
@@ -37,7 +37,11 @@ impl App {
         Ok(Self {
             tick_rate,
             frame_rate,
-            components: vec![Box::new(Home::new()), Box::new(FpsCounter::default())],
+            components: vec![
+                Box::new(Home::new()),
+                Box::new(ChatWindow::new()),
+                Box::new(Input::new()),
+            ],
             should_quit: false,
             should_suspend: false,
             config: Config::new()?,
@@ -50,7 +54,7 @@ impl App {
 
     pub async fn run(&mut self) -> Result<()> {
         let mut tui = Tui::new()?
-            // .mouse(true) // uncomment this line to enable mouse support
+            .mouse(true) // uncomment this line to enable mouse support
             .tick_rate(self.tick_rate)
             .frame_rate(self.frame_rate);
         tui.enter()?;
@@ -135,7 +139,7 @@ impl App {
             if action != Action::Tick && action != Action::Render {
                 debug!("{action:?}");
             }
-            match action {
+            match &action {
                 Action::Tick => {
                     self.last_tick_key_events.drain(..);
                 }
@@ -143,8 +147,15 @@ impl App {
                 Action::Suspend => self.should_suspend = true,
                 Action::Resume => self.should_suspend = false,
                 Action::ClearScreen => tui.terminal.clear()?,
-                Action::Resize(w, h) => self.handle_resize(tui, w, h)?,
+                Action::Resize(w, h) => self.handle_resize(tui, *w, *h)?,
                 Action::Render => self.render(tui)?,
+                Action::SendMessage(message) => {
+                    // Handle the message here - could store it, send to API, etc.
+                    debug!("Message sent: {}", message);
+                }
+                Action::FocusInput | Action::FocusChat => {
+                    // Handle focus changes if needed
+                }
                 _ => {}
             }
             for component in self.components.iter_mut() {
@@ -164,8 +175,36 @@ impl App {
 
     fn render(&mut self, tui: &mut Tui) -> Result<()> {
         tui.draw(|frame| {
+            let main_area = frame.area();
+
+            // Create main layout: chat area + input area
+            let main_layout = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Ratio(3, 4), // Chat area 3/4 of the screen
+                    Constraint::Ratio(1, 4), // Input area 1/4 of the screen
+                ])
+                .split(main_area);
+
+            let chat_area = main_layout[0];
+            let input_area = main_layout[1];
+
+            // Render components in their designated areas
             for component in self.components.iter_mut() {
-                if let Err(err) = component.draw(frame, frame.area()) {
+                let result = match component.as_any().type_id() {
+                    id if id == std::any::TypeId::of::<ChatWindow>() => {
+                        component.draw(frame, chat_area)
+                    }
+                    id if id == std::any::TypeId::of::<Input>() => {
+                        component.draw(frame, input_area)
+                    }
+                    _ => {
+                        // Default to main area for unknown components
+                        component.draw(frame, main_area)
+                    }
+                };
+
+                if let Err(err) = result {
                     let _ = self
                         .action_tx
                         .send(Action::Error(format!("Failed to draw: {:?}", err)));
