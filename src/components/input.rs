@@ -33,10 +33,12 @@ impl Input {
         }
     }
 
+    #[allow(dead_code)]
     pub fn set_focus(&mut self, focused: bool) {
         self.is_focused = focused;
     }
 
+    #[allow(dead_code)]
     pub fn get_text(&self) -> String {
         self.textarea.lines().join("\n")
     }
@@ -45,6 +47,7 @@ impl Input {
         self.textarea = TextArea::default();
     }
 
+    #[allow(dead_code)]
     fn submit(&mut self) -> Option<Action> {
         let text = self.get_text();
         if !text.trim().is_empty() {
