@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/cipher416/lazychat/workflows/CI/badge.svg)](https://github.com/cipher416/lazychat/actions)
 
-A terminal-based chat client for LLM interactions built with Rust and ratatui.
+A minimal terminal-based chat client for LLM interactions built with Rust and ratatui.
 
 Demo:
 
