@@ -80,6 +80,15 @@ impl Component for Input {
         }
 
         match key.code {
+            KeyCode::Enter => {
+                let text = self.get_text();
+                if !text.trim().is_empty() {
+                    self.clear();
+                    Ok(Some(Action::SendMessage(text)))
+                } else {
+                    Ok(None)
+                }
+            }
             KeyCode::Esc => {
                 // Clear input on Escape
                 self.clear();
@@ -117,6 +126,7 @@ impl Component for Input {
             .title("Input")
             .title_bottom("Esc: clear | Ctrl+C: quit | Use arrow keys, Page Up/Down to navigate")
             .border_style(Style::default().fg(Color::Blue));
+
         let inner_area = block.inner(area);
         frame.render_widget(block, area);
         frame.render_widget(&self.textarea, inner_area);
