@@ -13,6 +13,7 @@ https://github.com/user-attachments/assets/2f832e0b-3f28-4f08-b326-013bc188d5c4
 
 - **Terminal User Interface**: Clean, responsive TUI built with ratatui
 - **LLM Integration**: Connect to OpenRouter API for AI chat completions
+- **System Prompt Support**: Configure custom system prompts to customize AI behavior and context
 - **Real-time Chat**: Interactive chat interface with loading states
 - **Message History**: Persistent chat history during session
 - **Keyboard Navigation**: Full keyboard-driven interface
@@ -84,7 +85,38 @@ The application features a split-screen layout:
 
 - **Enter**: Send message
 - **Ctrl+C**: Quit application
+- **Ctrl+S**: Open system prompt editor
 - **Mouse**: Enabled for interaction (optional)
+
+#### System Prompt Editor
+
+- **Ctrl+S**: Save system prompt and close editor
+- **Ctrl+Enter**: Alternative save shortcut  
+- **Esc**: Cancel editing and close editor
+
+#### Chat Navigation
+
+- **↑/↓ or k/j**: Scroll through chat history
+- **Page Up/Page Down**: Fast scroll through chat
+- **Home/End**: Jump to top/bottom of chat
+
+## System Prompts
+
+System prompts allow you to provide context and instructions to the AI that persist across the entire conversation. They are automatically prepended to every API request, helping you:
+
+- Set the AI's role or personality (e.g., "You are a helpful coding assistant")
+- Provide domain-specific context (e.g., "Answer questions about Python programming")
+- Define response format preferences (e.g., "Keep responses concise and technical")
+- Establish conversation rules or constraints
+
+### Using System Prompts
+
+1. **Open the editor**: Press `Ctrl+S` to open the system prompt editor dialog
+2. **Edit the prompt**: Type your system prompt in the text area
+3. **Save changes**: Press `Ctrl+S` or `Ctrl+Enter` to save and apply the system prompt
+4. **Cancel editing**: Press `Esc` to close the editor without saving changes
+
+The system prompt will be applied to all subsequent messages in your conversation. You can edit or clear the system prompt at any time during your chat session.
 
 ## Configuration
 
