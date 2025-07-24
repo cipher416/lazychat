@@ -4,6 +4,11 @@
 
 A terminal-based chat client for LLM interactions built with Rust and ratatui.
 
+Demo:
+
+https://github.com/user-attachments/assets/2f832e0b-3f28-4f08-b326-013bc188d5c4
+
+
 ## Features
 
 - **Terminal User Interface**: Clean, responsive TUI built with ratatui
