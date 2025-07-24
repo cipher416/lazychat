@@ -175,7 +175,7 @@ impl App {
                     self.state.is_loading = false;
                     self.state.chat_history.push(ChatMessage {
                         role: "system".to_string(),
-                        content: format!("Error: {}", err),
+                        content: format!("Error: {err}"),
                     });
                     // Update state in all components
                     for component in self.components.iter_mut() {
@@ -242,8 +242,7 @@ impl App {
                                 let _ = action_tx.send(Action::MessageReceived(content));
                             }
                             Err(err) => {
-                                let _ =
-                                    action_tx.send(Action::Error(format!("API Error: {}", err)));
+                                let _ = action_tx.send(Action::Error(format!("API Error: {err}")));
                             }
                         }
                     });

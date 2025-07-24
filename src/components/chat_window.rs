@@ -84,10 +84,10 @@ impl Component for ChatWindow {
         match action {
             Action::Tick => {
                 // Request render on every tick when loading to animate spinner
-                if let Some(ref state) = self.state {
-                    if state.is_loading {
-                        return Ok(Some(Action::Render));
-                    }
+                if let Some(ref state) = self.state
+                    && state.is_loading
+                {
+                    return Ok(Some(Action::Render));
                 }
             }
             Action::Render => {
@@ -129,12 +129,12 @@ impl Component for ChatWindow {
 
                 // First line includes the role prefix
                 if let Some(first_line) = wrapped_lines.first() {
-                    wrapped_messages.push((format!("{}{}", role_prefix, first_line), style));
+                    wrapped_messages.push((format!("{role_prefix}{first_line}"), style));
 
                     // Subsequent lines are indented
                     for line in wrapped_lines.iter().skip(1) {
                         let indent = " ".repeat(prefix_len);
-                        wrapped_messages.push((format!("{}{}", indent, line), style));
+                        wrapped_messages.push((format!("{indent}{line}"), style));
                     }
                 }
             }
@@ -151,7 +151,7 @@ impl Component for ChatWindow {
                 let spinner_char = spinner_chars[spinner_index as usize];
 
                 wrapped_messages.push((
-                    format!("assistant: {} Thinking...", spinner_char),
+                    format!("assistant: {spinner_char} Thinking..."),
                     Style::default().fg(Color::Yellow),
                 ));
             }
