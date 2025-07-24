@@ -13,6 +13,7 @@ pub enum Action {
     Error(String),
     Help,
     SendMessage(String),
+    MessageReceived(String),
     FocusInput,
     FocusChat,
 }

@@ -170,6 +170,19 @@ impl App {
                 Action::ClearScreen => tui.terminal.clear()?,
                 Action::Resize(w, h) => self.handle_resize(tui, *w, *h)?,
                 Action::Render => self.render(tui)?,
+                Action::Error(err) => {
+                    // Clear loading state on error and show error message
+                    self.state.is_loading = false;
+                    self.state.chat_history.push(ChatMessage {
+                        role: "system".to_string(),
+                        content: format!("Error: {}", err),
+                    });
+                    // Update state in all components
+                    for component in self.components.iter_mut() {
+                        component.register_state_handler(self.state.clone())?;
+                    }
+                    self.render(tui)?;
+                }
                 Action::SendMessage(message) => {
                     self.state.chat_history.push(ChatMessage {
                         role: "user".to_string(),
@@ -186,37 +199,59 @@ impl App {
                     // Force immediate render to show loading state
                     self.render(tui)?;
 
-                    let client = reqwest::Client::new();
-                    let response = client
-                        .post("https://openrouter.ai/api/v1/chat/completions")
-                        .header("Content-Type", "application/json")
-                        .bearer_auth(env::var("OPENROUTER_API_KEY").map_err(|_| {
-                            color_eyre::eyre::eyre!(
-                                "OPENROUTER_API_KEY environment variable not set"
-                            )
-                        })?)
-                        .body(
-                            json!({
-                                "model": "mistralai/mistral-nemo",
-                                "messages": self.state.chat_history.clone().iter().map(|msg| {
+                    // Spawn API call in background to avoid blocking the event loop
+                    let action_tx = self.action_tx.clone();
+                    let chat_history = self.state.chat_history.clone();
+                    tokio::spawn(async move {
+                        let result = async {
+                            let client = reqwest::Client::new();
+                            let response = client
+                                .post("https://openrouter.ai/api/v1/chat/completions")
+                                .header("Content-Type", "application/json")
+                                .bearer_auth(env::var("OPENROUTER_API_KEY").map_err(|_| {
+                                    color_eyre::eyre::eyre!(
+                                        "OPENROUTER_API_KEY environment variable not set"
+                                    )
+                                })?)
+                                .body(
                                     json!({
-                                        "role": msg.role,
-                                        "content": msg.content
+                                        "model": "mistralai/mistral-nemo",
+                                        "messages": chat_history.iter().map(|msg| {
+                                            json!({
+                                                "role": msg.role,
+                                                "content": msg.content
+                                            })
+                                        }).collect::<Vec<_>>()
                                     })
-                                }).collect::<Vec<_>>()
-                            })
-                            .to_string(),
-                        )
-                        .send()
-                        .await?;
-                    let response_text = response.text().await?;
-                    let response_json: serde_json::Value = serde_json::from_str(&response_text)?;
-                    let content = response_json["choices"][0]["message"]["content"]
-                        .as_str()
-                        .unwrap();
+                                    .to_string(),
+                                )
+                                .send()
+                                .await?;
+                            let response_text = response.text().await?;
+                            let response_json: serde_json::Value =
+                                serde_json::from_str(&response_text)?;
+                            let content = response_json["choices"][0]["message"]["content"]
+                                .as_str()
+                                .unwrap();
+                            Ok::<String, color_eyre::eyre::Error>(content.to_string())
+                        }
+                        .await;
+
+                        match result {
+                            Ok(content) => {
+                                let _ = action_tx.send(Action::MessageReceived(content));
+                            }
+                            Err(err) => {
+                                let _ =
+                                    action_tx.send(Action::Error(format!("API Error: {}", err)));
+                            }
+                        }
+                    });
+                }
+                Action::MessageReceived(content) => {
                     self.state.chat_history.push(ChatMessage {
                         role: "assistant".to_string(),
-                        content: content.to_string(),
+                        content: content.clone(),
                     });
 
                     // Clear loading state

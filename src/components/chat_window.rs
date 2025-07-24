@@ -83,7 +83,12 @@ impl Component for ChatWindow {
     fn update(&mut self, action: Action) -> Result<Option<Action>> {
         match action {
             Action::Tick => {
-                // add any logic here that should run on every tick
+                // Request render on every tick when loading to animate spinner
+                if let Some(ref state) = self.state {
+                    if state.is_loading {
+                        return Ok(Some(Action::Render));
+                    }
+                }
             }
             Action::Render => {
                 // add any logic here that should run on every render
@@ -136,8 +141,17 @@ impl Component for ChatWindow {
 
             // Add loading indicator if loading
             if state.is_loading {
+                let spinner_chars = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+                let spinner_index = (std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis()
+                    / 100)
+                    % spinner_chars.len() as u128;
+                let spinner_char = spinner_chars[spinner_index as usize];
+
                 wrapped_messages.push((
-                    "AI: Thinking...".to_string(),
+                    format!("assistant: {} Thinking...", spinner_char),
                     Style::default().fg(Color::Yellow),
                 ));
             }
