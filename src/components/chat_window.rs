@@ -151,7 +151,7 @@ impl Component for ChatWindow {
                 let spinner_char = spinner_chars[spinner_index as usize];
 
                 wrapped_messages.push((
-                    format!("assistant: {spinner_char} Thinking..."),
+                    format!("AI: {spinner_char} Thinking..."),
                     Style::default().fg(Color::Yellow),
                 ));
             }

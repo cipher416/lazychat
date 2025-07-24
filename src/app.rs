@@ -283,7 +283,7 @@ impl App {
                 }
                 Action::MessageReceived(content) => {
                     self.state.chat_history.push(ChatMessage {
-                        role: "assistant".to_string(),
+                        role: "AI".to_string(),
                         content: content.clone(),
                     });
 
