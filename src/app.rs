@@ -10,7 +10,7 @@ use tracing::{debug, info};
 
 use crate::{
     action::Action,
-    components::{Component, chat_window::ChatWindow, home::Home, input::Input},
+    components::{Component, chat_window::ChatWindow, dialog::Dialog, home::Home, input::Input},
     config::Config,
     tui::{Event, Tui},
 };
@@ -45,6 +45,7 @@ pub struct ChatMessage {
 pub struct AppState {
     pub chat_history: Vec<ChatMessage>,
     pub is_loading: bool,
+    pub system_prompt: String,
 }
 
 impl App {
@@ -58,6 +59,7 @@ impl App {
                 Box::new(Home::new()),
                 Box::new(ChatWindow::new()),
                 Box::new(Input::new()),
+                Box::new(Dialog::new()),
             ],
             should_quit: false,
             should_suspend: false,
@@ -119,12 +121,28 @@ impl App {
             Event::Tick => action_tx.send(Action::Tick)?,
             Event::Render => action_tx.send(Action::Render)?,
             Event::Resize(x, y) => action_tx.send(Action::Resize(x, y))?,
-            Event::Key(key) => self.handle_key_event(key)?,
-            _ => {}
-        }
-        for component in self.components.iter_mut() {
-            if let Some(action) = component.handle_events(Some(event.clone()))? {
-                action_tx.send(action)?;
+            Event::Key(key) => {
+                // First, let components handle the key event
+                let mut key_handled = false;
+                for component in self.components.iter_mut() {
+                    if let Some(action) = component.handle_events(Some(event.clone()))? {
+                        action_tx.send(action)?;
+                        key_handled = true;
+                    }
+                }
+
+                // Only process global keybindings if no component handled the key
+                if !key_handled {
+                    self.handle_key_event(key)?;
+                }
+            }
+            _ => {
+                // For non-key events, let all components handle them
+                for component in self.components.iter_mut() {
+                    if let Some(action) = component.handle_events(Some(event.clone()))? {
+                        action_tx.send(action)?;
+                    }
+                }
             }
         }
         Ok(())
@@ -202,9 +220,30 @@ impl App {
                     // Spawn API call in background to avoid blocking the event loop
                     let action_tx = self.action_tx.clone();
                     let chat_history = self.state.chat_history.clone();
+                    let system_prompt = self.state.system_prompt.clone();
                     tokio::spawn(async move {
                         let result = async {
                             let client = reqwest::Client::new();
+
+                            // Prepare messages with optional system prompt
+                            let mut messages = Vec::new();
+
+                            // Add system prompt if it exists and is not empty
+                            if !system_prompt.is_empty() {
+                                messages.push(json!({
+                                    "role": "system",
+                                    "content": system_prompt
+                                }));
+                            }
+
+                            // Add chat history
+                            messages.extend(chat_history.iter().map(|msg| {
+                                json!({
+                                    "role": msg.role,
+                                    "content": msg.content
+                                })
+                            }));
+
                             let response = client
                                 .post("https://openrouter.ai/api/v1/chat/completions")
                                 .header("Content-Type", "application/json")
@@ -216,12 +255,7 @@ impl App {
                                 .body(
                                     json!({
                                         "model": "mistralai/mistral-nemo",
-                                        "messages": chat_history.iter().map(|msg| {
-                                            json!({
-                                                "role": msg.role,
-                                                "content": msg.content
-                                            })
-                                        }).collect::<Vec<_>>()
+                                        "messages": messages
                                     })
                                     .to_string(),
                                 )
@@ -261,6 +295,13 @@ impl App {
                     }
                     // Force immediate render to show response
                     self.render(tui)?;
+                }
+                Action::SetSystemPrompt(prompt) => {
+                    self.state.system_prompt = prompt.clone();
+                    // Update state in all components
+                    for component in self.components.iter_mut() {
+                        component.register_state_handler(self.state.clone())?;
+                    }
                 }
                 Action::FocusInput | Action::FocusChat => {
                     // Handle focus changes if needed
@@ -306,6 +347,10 @@ impl App {
                     }
                     id if id == std::any::TypeId::of::<Input>() => {
                         component.draw(frame, input_area)
+                    }
+                    id if id == std::any::TypeId::of::<Dialog>() => {
+                        // Dialog should render over the entire screen
+                        component.draw(frame, main_area)
                     }
                     _ => {
                         // Default to main area for unknown components

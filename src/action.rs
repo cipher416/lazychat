@@ -16,4 +16,8 @@ pub enum Action {
     MessageReceived(String),
     FocusInput,
     FocusChat,
+    ShowDialog(String),      // Show dialog with content
+    HideDialog,              // Hide dialog
+    ShowSystemPromptDialog,  // Show system prompt dialog
+    SetSystemPrompt(String), // Set the system prompt
 }

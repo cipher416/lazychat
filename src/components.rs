@@ -10,6 +10,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::{action::Action, app::AppState, config::Config, tui::Event};
 
 pub mod chat_window;
+pub mod dialog;
 pub mod home;
 pub mod input;
 

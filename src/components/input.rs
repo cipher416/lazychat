@@ -33,12 +33,10 @@ impl Input {
         }
     }
 
-    #[allow(dead_code)]
     pub fn set_focus(&mut self, focused: bool) {
         self.is_focused = focused;
     }
 
-    #[allow(dead_code)]
     pub fn get_text(&self) -> String {
         self.textarea.lines().join("\n")
     }
@@ -110,6 +108,15 @@ impl Component for Input {
 
     fn update(&mut self, action: Action) -> Result<Option<Action>> {
         match action {
+            Action::FocusInput => {
+                self.set_focus(true);
+                return Ok(Some(Action::Render));
+            }
+            Action::ShowDialog(_) | Action::ShowSystemPromptDialog => {
+                // When dialog is shown, input should lose focus
+                self.set_focus(false);
+                return Ok(Some(Action::Render));
+            }
             Action::Tick => {
                 // add any logic here that should run on every tick
             }
@@ -122,10 +129,17 @@ impl Component for Input {
     }
 
     fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
+        // Set border color based on focus state
+        let border_color = if self.is_focused {
+            Color::Blue
+        } else {
+            Color::Gray
+        };
+
         let block = Block::bordered()
             .title("Input")
             .title_bottom("Esc: clear | Ctrl+C: quit | Use arrow keys, Page Up/Down to navigate")
-            .border_style(Style::default().fg(Color::Blue));
+            .border_style(Style::default().fg(border_color));
 
         let inner_area = block.inner(area);
         frame.render_widget(block, area);
