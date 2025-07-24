@@ -7,7 +7,7 @@ use ratatui::{
 use std::any::Any;
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::{action::Action, config::Config, tui::Event};
+use crate::{action::Action, app::AppState, config::Config, tui::Event};
 
 pub mod chat_window;
 pub mod home;
@@ -45,6 +45,19 @@ pub trait Component {
     /// * `Result<()>` - An Ok result or an error.
     fn register_config_handler(&mut self, config: Config) -> Result<()> {
         let _ = config; // to appease clippy
+        Ok(())
+    }
+    /// Register a state handler that provides access to application state if necessary.
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - Application state.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<()>` - An Ok result or an error.
+    fn register_state_handler(&mut self, state: AppState) -> Result<()> {
+        let _ = state; // to appease clippy
         Ok(())
     }
     /// Initialize the component with a specified area if necessary.

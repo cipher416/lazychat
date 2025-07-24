@@ -1,7 +1,10 @@
+use std::env;
+
 use color_eyre::Result;
 use crossterm::event::KeyEvent;
 use ratatui::prelude::*;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tokio::sync::mpsc;
 use tracing::{debug, info};
 
@@ -23,6 +26,7 @@ pub struct App {
     last_tick_key_events: Vec<KeyEvent>,
     action_tx: mpsc::UnboundedSender<Action>,
     action_rx: mpsc::UnboundedReceiver<Action>,
+    state: AppState,
 }
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -31,9 +35,22 @@ pub enum Mode {
     Home,
 }
 
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct ChatMessage {
+    pub role: String,
+    pub content: String,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct AppState {
+    pub chat_history: Vec<ChatMessage>,
+    pub is_loading: bool,
+}
+
 impl App {
     pub fn new(tick_rate: f64, frame_rate: f64) -> Result<Self> {
         let (action_tx, action_rx) = mpsc::unbounded_channel();
+        let state = AppState::default();
         Ok(Self {
             tick_rate,
             frame_rate,
@@ -49,6 +66,7 @@ impl App {
             last_tick_key_events: Vec::new(),
             action_tx,
             action_rx,
+            state,
         })
     }
 
@@ -66,13 +84,16 @@ impl App {
             component.register_config_handler(self.config.clone())?;
         }
         for component in self.components.iter_mut() {
+            component.register_state_handler(self.state.clone())?;
+        }
+        for component in self.components.iter_mut() {
             component.init(tui.size()?)?;
         }
 
         let action_tx = self.action_tx.clone();
         loop {
             self.handle_events(&mut tui).await?;
-            self.handle_actions(&mut tui)?;
+            self.handle_actions(&mut tui).await?;
             if self.should_suspend {
                 tui.suspend()?;
                 action_tx.send(Action::Resume)?;
@@ -134,7 +155,7 @@ impl App {
         Ok(())
     }
 
-    fn handle_actions(&mut self, tui: &mut Tui) -> Result<()> {
+    async fn handle_actions(&mut self, tui: &mut Tui) -> Result<()> {
         while let Ok(action) = self.action_rx.try_recv() {
             if action != Action::Tick && action != Action::Render {
                 debug!("{action:?}");
@@ -150,8 +171,62 @@ impl App {
                 Action::Resize(w, h) => self.handle_resize(tui, *w, *h)?,
                 Action::Render => self.render(tui)?,
                 Action::SendMessage(message) => {
-                    // Handle the message here - could store it, send to API, etc.
+                    self.state.chat_history.push(ChatMessage {
+                        role: "user".to_string(),
+                        content: message.clone(),
+                    });
                     debug!("Message sent: {}", message);
+
+                    // Set loading state
+                    self.state.is_loading = true;
+                    // Update state in all components
+                    for component in self.components.iter_mut() {
+                        component.register_state_handler(self.state.clone())?;
+                    }
+                    // Force immediate render to show loading state
+                    self.render(tui)?;
+
+                    let client = reqwest::Client::new();
+                    let response = client
+                        .post("https://openrouter.ai/api/v1/chat/completions")
+                        .header("Content-Type", "application/json")
+                        .bearer_auth(env::var("OPENROUTER_API_KEY").map_err(|_| {
+                            color_eyre::eyre::eyre!(
+                                "OPENROUTER_API_KEY environment variable not set"
+                            )
+                        })?)
+                        .body(
+                            json!({
+                                "model": "mistralai/mistral-nemo",
+                                "messages": self.state.chat_history.clone().iter().map(|msg| {
+                                    json!({
+                                        "role": msg.role,
+                                        "content": msg.content
+                                    })
+                                }).collect::<Vec<_>>()
+                            })
+                            .to_string(),
+                        )
+                        .send()
+                        .await?;
+                    let response_text = response.text().await?;
+                    let response_json: serde_json::Value = serde_json::from_str(&response_text)?;
+                    let content = response_json["choices"][0]["message"]["content"]
+                        .as_str()
+                        .unwrap();
+                    self.state.chat_history.push(ChatMessage {
+                        role: "assistant".to_string(),
+                        content: content.to_string(),
+                    });
+
+                    // Clear loading state
+                    self.state.is_loading = false;
+                    // Update state in all components
+                    for component in self.components.iter_mut() {
+                        component.register_state_handler(self.state.clone())?;
+                    }
+                    // Force immediate render to show response
+                    self.render(tui)?;
                 }
                 Action::FocusInput | Action::FocusChat => {
                     // Handle focus changes if needed

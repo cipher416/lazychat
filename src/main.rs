@@ -15,6 +15,7 @@ mod tui;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    dotenv::dotenv().ok(); // Load .env file if it exists
     crate::errors::init()?;
     crate::logging::init()?;
 
