@@ -174,11 +174,8 @@ impl Component for Dialog {
 
         // Create the dialog block with appropriate title and instructions
         let (title, bottom_title) = match self.dialog_type {
-            DialogType::SystemPrompt => (
-                "System Prompt Editor",
-                "Ctrl+Enter or Ctrl+S: Save | Esc: Cancel",
-            ),
-            DialogType::Generic => ("Text Editor", "Ctrl+Enter or Ctrl+S: Submit | Esc: Cancel"),
+            DialogType::SystemPrompt => ("System Prompt Editor", " Ctrl+S: Save | Esc: Cancel"),
+            DialogType::Generic => ("Text Editor", "Ctrl+S: Submit | Esc: Cancel"),
         };
 
         // Set border color based on focus state
