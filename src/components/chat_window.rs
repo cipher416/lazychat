@@ -114,9 +114,9 @@ impl Component for ChatWindow {
 
             for msg in &state.chat_history {
                 let style = if msg.role == "user" {
-                    Style::default().fg(Color::White)
+                    Style::default().fg(Color::White).bg(Color::Black)
                 } else {
-                    Style::default().fg(Color::Cyan)
+                    Style::default().fg(Color::Black).bg(Color::Blue)
                 };
 
                 // Create role prefix
